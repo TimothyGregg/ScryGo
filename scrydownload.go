@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,14 +12,12 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-	"errors"
 )
 
 const (
-	BulkLocation = "https://api.scryfall.com/bulk-data/"
-	BulkLog = "ScryGoBulk.info"
-	SaveLocation = "D:/Scryfall/"
-	ShortFormTime = "20060102"
+	BulkLocation  = "https://api.scryfall.com/bulk-data/"
+	BulkLog       = "ScryGoBulk.info"
+	SaveLocation  = "D:/Scryfall/"
 )
 
 func main() {
@@ -41,7 +41,7 @@ func DownloadBulkData() error {
 
 	// Check for the ScryGo.info file and look for the last update
 	_, err := os.Stat(SaveLocation + BulkLog)
-	if err != nil  {
+	if err != nil {
 		if os.IsNotExist(err) {
 			// Path doesn't exist, we continue onward
 		} else {
@@ -58,14 +58,20 @@ func DownloadBulkData() error {
 
 		// Get and check the date to see if it is within the last 24 hours
 		contents, err := ioutil.ReadAll(file)
-		date, _ := time.Parse(ShortFormTime, string(contents))
+		date, _ := time.Parse(time.UnixDate, string(contents))
 		// Prints the found date in Unix date format
-		// fmt.Println("Found containing: " + date.Format(time.UnixDate))
+		// fmt.Println("Found containing: " + string(contents) + " translating to " + date.Format(time.UnixDate))
+		// fmt.Println("Now: " + time.Now().Format(time.UnixDate))
+		// fmt.Println(fmt.Sprintf("%0.2f", time.Now().Sub(date).Hours()))
 		if time.Now().Sub(date).Hours() < 24 {
-			return errors.New("The bulk data has been updated within the last 24 hours. You don't need to update it yet.")	
+			return errors.New("The bulk data has been updated within the last 24 hours. You don't need to update it yet.")
 		}
 	}
 
+	// Quick sanity check
+	if !PromptYN("The Bulk Data files are likely over a gigabyte of data that will be downloaded. Do you want to update these files?") {
+		return errors.New("Download aborted by user.")
+	}
 
 	// Get the bulk data items from Scryfall
 	resp, err := http.Get(fmt.Sprintf("%s", BulkLocation))
@@ -100,17 +106,149 @@ func DownloadBulkData() error {
 	defer file.Close()
 
 	// Add the current date to the log file for future checking
-	now := time.Now()
-	year_string, _ := fmt.Printf("%04d", now.Year())
-	month_string, _ := fmt.Printf("%02d", int(now.Month()))
-	day_string, _ := fmt.Printf("%02d", now.Day())
-	_, err = file.WriteString(string(year_string + month_string + day_string))
+	// now := time.Now()
+	// year_string := fmt.Sprintf("%04d", now.Year())
+	// month_string := fmt.Sprintf("%02d", int(now.Month()))
+	// day_string := fmt.Sprintf("%02d", now.Day())
+	// timezone_string, _ := now.Zone()
+	// _, err = file.WriteString(string(year_string + month_string + day_string + " " + timezone_string))
+
+	_, err = file.WriteString(time.Now().Format(time.UnixDate))
 
 	return nil
 }
 
+func PromptYN(prompt string) bool {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(prompt + " [y/n]: ")
+	text, _ := reader.ReadString('\n')
+	switch text[0] {
+	case 'y':
+		return true
+	case 'n':
+		return false
+	}
+	return PromptYN(prompt)
+}
+
 type JSONElement struct {
 	ObjectType            string              `json:"object"`
+	Status                int64               `json:"status"`
+	Code                  string              `json:"code"`
+	Details               string              `json:"details"`
+	Type                  string              `json:"type"`
+	Warnings              []string            `json:"warnings"`
+	Data                  []JSONElement       `json:"data"`
+	Has_More              bool                `json:"has_more"`
+	Next_Page             string              `json:"next_page"`
+	Total_Cards           int                 `json:"total_cards"`
+	ID                    string              `json:"id"`
+	MTGO_Code             string              `json:"mtgo_code"`
+	Arena_Code            string              `json:"arena_code"`
+	TCGPlayer_ID          string              `json:"tcgplayer_id"`
+	Name                  string              `json:"name"`
+	Set_Type              string              `json:"set_type"`
+	Released_At           string              `json:"released_at"`
+	Block_Code            string              `json:"block_code"`
+	Block                 string              `json:"block"`
+	Parent_Set_Code       string              `json:"parent_set_code"`
+	Card_Count            int                 `json:"card_count"`
+	Digital               bool                `json:"digital"`
+	Foil_Only             bool                `json:"foil_only"`
+	Nonfoil_Only          bool                `json:"nonfoil_only"`
+	Scryfall_URI          string              `json:"scryfall_uri"`
+	URI                   string              `json:"uri"`
+	Icon_SVG_URI          string              `json:"icon_svg_uri"`
+	Search_URI            string              `json:"search_uri"`
+	Oracle_ID             string              `json:"oracle_id"`
+	Source                string              `json:"source"`
+	Published_At          string              `json:"published_at"`
+	Comment               string              `json:"comment"`
+	Symbol                string              `json:"symbol"`
+	SVG_URI               string              `json:"svg_uri"`
+	Loose_Variant         string              `json:"loose_variant"`
+	Engligh               string              `json:"english"`
+	Transposable          bool                `json:"transposable"`
+	Represents_Mana       bool                `json:"represents_mana"`
+	CMC                   float64             `json:"cmc"`
+	Appears_In_Mana_Costs bool                `json:"appears_in_mana_costs"`
+	Funny                 bool                `json:"funny"`
+	Colors                []Color             `json:"colors"`
+	Gatherer_Alternates   []string            `json:"gatherer_alternates"`
+	Total_Values          int                 `json:"total_values"`
+	Updated_At            string              `json:"updated_at"`
+	Description           string              `json:"description"`
+	Compressed_size       int                 `json:"compressed_size"`
+	Download_URI          string              `json:"download_uri"`
+	Content_Type          string              `json:"content_type"`
+	Content_Encoding      string              `json:"content_encoding"`
+	Arena_ID              int                 `json:"arena_id"`
+	Language              string              `json:"lang"`
+	MTGO_ID               int                 `json:"mtgo_id"`
+	MTGO_Foil_ID          int                 `json:"mtgo_foil_id"`
+	Multiverse_IDs        []int               `json:"multiverse_ids"`
+	Prints_Search_URI     string              `json:"prints_search_uri"`
+	Rulings_URI           string              `json:"rulings_uri"`
+	All_Parts             []RelatedCardObject `json:"all_parts"`
+	Card_Faces            []CardFaceObject    `json:"card_faces"`
+	Keywords              []string            `json:"keywords"`
+	Color_Identity        []Color             `json:"color_identity"`
+	Color_Indicator       []Color             `json:"color_indicator"`
+	EDHRec_Rank           int                 `json:"edhrec_rank"`
+	Foil                  bool                `json:"foil"`
+	Hand_Modifier         string              `json:"hand_modifier"`
+	Layout                string              `json:"layout"`
+	Legalities            LegalitiesObject    `json:"legalities"`
+	Life_Modifier         string              `json:"life_modifier"`
+	Loyalty               string              `json:"loyalty"`
+	Mana_Cost             string              `json:"mana_cost"`
+	Nonfoil               bool                `json:"nonfoil"`
+	Oracle_Text           string              `json:"oracle_text"`
+	Oversized             bool                `json:"oversized"`
+	Power                 string              `json:"power"`
+	Reserved              bool                `json:"reserved"`
+	Toughness             string              `json:"toughness"`
+	Type_Line             string              `json:"type_line"`
+	Artist                string              `json:"artist"`
+	Artist_IDs            []string            `json:"artist_ids"`
+	Booster               bool                `json:"booster"`
+	Border_Color          string              `json:"border_color"`
+	Card_Back_ID          string              `json:"card_back_id"`
+	Collector_Number      string              `json:"collector_number"`
+	Content_Warning       bool                `json:"content_warning"`
+	Flavor_Name           string              `json:"flavor_name"`
+	Flavor_Text           string              `json:"flavor_text"`
+	Frame_Effects         []string            `json:"frame_effects"`
+	Frame                 string              `json:"frame"`
+	Full_Art              bool                `json:"full_art"`
+	Games                 []string            `json:"games"`
+	Highres_Image         bool                `json:"highres_image"`
+	Illustration_ID       string              `json:"illustartion_id"`
+	Image_URIs            ImageURIsObject     `json:"image_uris"`
+	Prices                PricesObject        `json:"prices"`
+	Printed_Name          string              `json:"printed_name"`
+	Printed_Text          string              `json:"printed_text"`
+	Printed_Type_Line     string              `json:"printer_type_line"`
+	Promo                 bool                `json:"promo"`
+	Promo_Types           []string            `json:"promo_types"`
+	Purchase_URIs         PurchaseURIsObject  `json:"purchase_uris"`
+	Rarity                string              `json:"rarity"`
+	Related_URIs          RelatedURIsObject   `json:"related_uris"`
+	Reprint               bool                `json:"reprint"`
+	Scryfall_Set_URI      string              `json:"scryfall_set_uri"`
+	Set_Name              string              `json:"set_name"`
+	Set_Search_URI        string              `json:"set_search_uri"`
+	Set_URI               string              `json:"set_uri"`
+	Set                   string              `json:"set"`
+	Story_Spotlight       bool                `json:"story_spotlight"`
+	Textless              bool                `json:"textless"`
+	Variation             bool                `json:"variation"`
+	Variation_Of          string              `json:"variation_of"`
+	Watermark             string              `json:"watermark"`
+	Preview_Previewed_At  string              `json:"preview.previewed_at"`
+	Preview_Source_URI    string              `json:"preview.source_uri"`
+	Preview_Source        string              `json:"preview.source"`
+	Component             string              `json:"component"`
 }
 
 type ScryfallError struct {
@@ -359,7 +497,6 @@ type RelatedCardObject struct {
 	Type_Line  string `json:"type_line"`
 	URI        string `json:"uri"`
 }
-
 
 func pretty_print(blob []byte) error {
 	var prettyJSON bytes.Buffer
