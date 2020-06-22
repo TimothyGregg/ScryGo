@@ -132,6 +132,7 @@ func PromptYN(prompt string) bool {
 }
 
 type JSONElement struct {
+	// Because I hate myself and haven't figured out a more elegant way to make this work the way I want it to
 	ObjectType            string              `json:"object"`
 	Status                int64               `json:"status"`
 	Code                  string              `json:"code"`
