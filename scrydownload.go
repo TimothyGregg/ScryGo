@@ -31,9 +31,51 @@ func main() {
 	}
 
 	err = test()
+
+	time.Sleep(time.Second * 2)	
+
+	err = CatRulings(SaveLocation + "Rulings.json")
 }
 
 func test() error {
+	return nil
+}
+
+func CatRulings(path string) error {
+	_, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Path doesn't exist, we continue onward
+			return errors.New("The file you attempted to cat [" + path + "] does not exist.")
+		} else {
+			// File exists, but there is an error
+			return err
+		}
+	}
+	// File exists, check the most recent update
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	// Read the contents
+	contents, err := ioutil.ReadAll(file)
+	if err != nil {
+		return err
+	}
+
+	var rulings []Ruling
+	err = json.Unmarshal(contents, &rulings)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	for _, ruling := range rulings {
+		fmt.Println(ruling)
+	}
+
 	return nil
 }
 
@@ -46,7 +88,7 @@ func DownloadBulkData() error {
 			// Path doesn't exist, we continue onward
 		} else {
 			// File exists, but there is an error
-			return nil
+			return err
 		}
 	} else {
 		// File exists, check the most recent update
@@ -58,6 +100,9 @@ func DownloadBulkData() error {
 
 		// Get and check the date to see if it is within the last 24 hours
 		contents, err := ioutil.ReadAll(file)
+		if err != nil {
+			return err
+		}
 		date, _ := time.Parse(time.UnixDate, string(contents))
 		// Prints the found date in Unix date format
 		// fmt.Println("Found containing: " + string(contents) + " translating to " + date.Format(time.UnixDate))
